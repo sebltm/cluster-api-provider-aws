@@ -599,6 +599,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 						MixedInstancesPolicy: awsMachinePool.Spec.MixedInstancesPolicy.DeepCopy(),
 					}, nil
 				})
+				asgSvc.EXPECT().GetLifecycleHooks(gomock.Any())
 				asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet-1"}, nil) // no change
 				// No changes, so there must not be an ASG update!
 				asgSvc.EXPECT().UpdateASG(gomock.Any()).Times(0)
@@ -655,6 +656,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 						MixedInstancesPolicy: awsMachinePool.Spec.MixedInstancesPolicy.DeepCopy(),
 					}, nil
 				})
+				asgSvc.EXPECT().GetLifecycleHooks(gomock.Any())
 				asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet-1"}, nil) // no change
 				// No changes, so there must not be an ASG update!
 				asgSvc.EXPECT().UpdateASG(gomock.Any()).Times(0)
@@ -739,6 +741,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 						MixedInstancesPolicy: awsMachinePool.Spec.MixedInstancesPolicy.DeepCopy(),
 					}, nil
 				})
+				asgSvc.EXPECT().GetLifecycleHooks(gomock.Any())
 				asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet-1"}, nil) // no change
 				// No changes, so there must not be an ASG update!
 				asgSvc.EXPECT().UpdateASG(gomock.Any()).Times(0)
