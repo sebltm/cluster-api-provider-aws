@@ -812,6 +812,184 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 			g.Eventually(recorder.Events).Should(Receive(ContainSubstring("DeletionInProgress")))
 		})
 	})
+	t.Run("Lifecycle Hooks", func(t *testing.T) {
+		t.Run("New lifecycle hook is added", func(t *testing.T) {
+			g := NewWithT(t)
+			setup(t, g)
+			defer teardown(t, g)
+
+			newLifecycleHook := expinfrav1.AWSLifecycleHook{
+				Name:                "new-hook",
+				LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+			}
+			ms.AWSMachinePool.Spec.AWSLifecycleHooks = append(ms.AWSMachinePool.Spec.AWSLifecycleHooks, newLifecycleHook)
+
+			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			asgSvc.EXPECT().DescribeLifecycleHooks(ms.Name()).Return(nil, nil)
+			asgSvc.EXPECT().DescribeLifecycleHook(ms.Name(), &newLifecycleHook).Return(nil, nil)
+			asgSvc.EXPECT().CreateLifecycleHook(ms.Name(), &newLifecycleHook).Return(nil)
+			reconSvc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
+			asgSvc.EXPECT().GetASGByName(gomock.Any()).DoAndReturn(func(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error) {
+				g.Expect(scope.Name()).To(Equal("test"))
+
+				// No difference to `AWSMachinePool.spec`
+				return &expinfrav1.AutoScalingGroup{
+					Name: scope.Name(),
+					Subnets: []string{
+						"subnet-1",
+					},
+					MinSize:              awsMachinePool.Spec.MinSize,
+					MaxSize:              awsMachinePool.Spec.MaxSize,
+					MixedInstancesPolicy: awsMachinePool.Spec.MixedInstancesPolicy.DeepCopy(),
+				}, nil
+			})
+			asgSvc.EXPECT().DescribeLifecycleHooks(gomock.Any()).Return(nil, nil).AnyTimes()
+			asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet-1"}, nil) // no change
+			// No changes, so there must not be an ASG update!
+			asgSvc.EXPECT().UpdateASG(gomock.Any()).Times(0)
+
+			err := reconciler.reconcileNormal(context.Background(), ms, cs, cs)
+			g.Expect(err).To(Succeed())
+		})
+		t.Run("Lifecycle hook to remove", func(t *testing.T) {
+			g := NewWithT(t)
+			setup(t, g)
+			defer teardown(t, g)
+
+			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			asgSvc.EXPECT().DescribeLifecycleHooks(ms.Name()).Return([]*expinfrav1.AWSLifecycleHook{
+				{
+					Name:                "hook-to-remove",
+					LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+				},
+			}, nil)
+			asgSvc.EXPECT().DeleteLifecycleHook(ms.Name(), &expinfrav1.AWSLifecycleHook{
+				Name:                "hook-to-remove",
+				LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+			}).Return(nil)
+			reconSvc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
+			asgSvc.EXPECT().GetASGByName(gomock.Any()).DoAndReturn(func(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error) {
+				g.Expect(scope.Name()).To(Equal("test"))
+
+				// No difference to `AWSMachinePool.spec`
+				return &expinfrav1.AutoScalingGroup{
+					Name: scope.Name(),
+					Subnets: []string{
+						"subnet-1",
+					},
+					MinSize:              awsMachinePool.Spec.MinSize,
+					MaxSize:              awsMachinePool.Spec.MaxSize,
+					MixedInstancesPolicy: awsMachinePool.Spec.MixedInstancesPolicy.DeepCopy(),
+				}, nil
+			})
+			asgSvc.EXPECT().DescribeLifecycleHooks(gomock.Any()).Return(nil, nil).AnyTimes()
+			asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet-1"}, nil) // no change
+			// No changes, so there must not be an ASG update!
+			asgSvc.EXPECT().UpdateASG(gomock.Any()).Times(0)
+
+			err := reconciler.reconcileNormal(context.Background(), ms, cs, cs)
+			g.Expect(err).To(Succeed())
+		})
+		t.Run("One to add, one to remove", func(t *testing.T) {
+			g := NewWithT(t)
+			setup(t, g)
+			defer teardown(t, g)
+			newLifecycleHook := expinfrav1.AWSLifecycleHook{
+				Name:                "new-hook",
+				LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+			}
+			ms.AWSMachinePool.Spec.AWSLifecycleHooks = append(ms.AWSMachinePool.Spec.AWSLifecycleHooks, newLifecycleHook)
+
+			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			asgSvc.EXPECT().DescribeLifecycleHook(ms.Name(), &newLifecycleHook).Return(nil, nil)
+			asgSvc.EXPECT().CreateLifecycleHook(ms.Name(), &newLifecycleHook).Return(nil)
+			asgSvc.EXPECT().DescribeLifecycleHooks(ms.Name()).Return([]*expinfrav1.AWSLifecycleHook{
+				{
+					Name:                "new-hook",
+					LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+				},
+				{
+					Name:                "hook-to-remove",
+					LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+				},
+			}, nil)
+			asgSvc.EXPECT().DeleteLifecycleHook(ms.Name(), &expinfrav1.AWSLifecycleHook{
+				Name:                "hook-to-remove",
+				LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+			}).Return(nil)
+			reconSvc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
+			asgSvc.EXPECT().GetASGByName(gomock.Any()).DoAndReturn(func(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error) {
+				g.Expect(scope.Name()).To(Equal("test"))
+
+				// No difference to `AWSMachinePool.spec`
+				return &expinfrav1.AutoScalingGroup{
+					Name: scope.Name(),
+					Subnets: []string{
+						"subnet-1",
+					},
+					MinSize:              awsMachinePool.Spec.MinSize,
+					MaxSize:              awsMachinePool.Spec.MaxSize,
+					MixedInstancesPolicy: awsMachinePool.Spec.MixedInstancesPolicy.DeepCopy(),
+				}, nil
+			})
+			asgSvc.EXPECT().DescribeLifecycleHooks(gomock.Any()).Return(nil, nil).AnyTimes()
+			asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet-1"}, nil) // no change
+			// No changes, so there must not be an ASG update!
+			asgSvc.EXPECT().UpdateASG(gomock.Any()).Times(0)
+
+			err := reconciler.reconcileNormal(context.Background(), ms, cs, cs)
+			g.Expect(err).To(Succeed())
+		})
+		t.Run("Update hook", func(t *testing.T) {
+			g := NewWithT(t)
+			setup(t, g)
+			defer teardown(t, g)
+			updateLifecycleHook := expinfrav1.AWSLifecycleHook{
+				Name:                "hook-to-update",
+				LifecycleTransition: "autoscaling:EC2_INSTANCE_TERMINATING",
+			}
+			ms.AWSMachinePool.Spec.AWSLifecycleHooks = append(ms.AWSMachinePool.Spec.AWSLifecycleHooks, updateLifecycleHook)
+
+			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			asgSvc.EXPECT().DescribeLifecycleHook(ms.Name(), &updateLifecycleHook).Return(&expinfrav1.AWSLifecycleHook{
+				Name:                "hook-to-update",
+				LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+			}, nil)
+			asgSvc.EXPECT().LifecycleHookNeedsUpdate(&expinfrav1.AWSLifecycleHook{
+				Name:                "hook-to-update",
+				LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+			}, &updateLifecycleHook).Return(true)
+			asgSvc.EXPECT().UpdateLifecycleHook(ms.Name(), &updateLifecycleHook).Return(nil)
+			asgSvc.EXPECT().DescribeLifecycleHooks(ms.Name()).Return([]*expinfrav1.AWSLifecycleHook{
+				{
+					Name:                "hook-to-update",
+					LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING",
+				},
+			}, nil)
+			reconSvc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
+			asgSvc.EXPECT().GetASGByName(gomock.Any()).DoAndReturn(func(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error) {
+				g.Expect(scope.Name()).To(Equal("test"))
+
+				// No difference to `AWSMachinePool.spec`
+				return &expinfrav1.AutoScalingGroup{
+					Name: scope.Name(),
+					Subnets: []string{
+						"subnet-1",
+					},
+					MinSize:              awsMachinePool.Spec.MinSize,
+					MaxSize:              awsMachinePool.Spec.MaxSize,
+					MixedInstancesPolicy: awsMachinePool.Spec.MixedInstancesPolicy.DeepCopy(),
+				}, nil
+			})
+			asgSvc.EXPECT().DescribeLifecycleHooks(gomock.Any()).Return(nil, nil).AnyTimes()
+			asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet-1"}, nil) // no change
+			// No changes, so there must not be an ASG update!
+			asgSvc.EXPECT().UpdateASG(gomock.Any()).Times(0)
+
+			err := reconciler.reconcileNormal(context.Background(), ms, cs, cs)
+			g.Expect(err).To(Succeed())
+		})
+	})
 }
 
 // TODO: This was taken from awsmachine_controller_test, i think it should be moved to elsewhere in both locations like test/helpers.
