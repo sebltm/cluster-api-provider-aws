@@ -34,10 +34,12 @@ import (
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/awserrors"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/converters"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/wait"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/record"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/annotations"
+	"sigs.k8s.io/cluster-api/util/conditions"
 )
 
 func (s *NodegroupService) describeNodegroup() (*eks.Nodegroup, error) {
@@ -150,7 +152,7 @@ func (s *NodegroupService) remoteAccess() (*eks.RemoteAccessConfig, error) {
 	// SourceSecurityGroups is validated to be empty if PublicAccess is true
 	// but just in case we use an empty list to take advantage of the documented
 	// API behavior
-	sSGs := []string{}
+	var sSGs = []string{}
 
 	if !pool.RemoteAccess.Public {
 		sSGs = pool.RemoteAccess.SourceSecurityGroups
@@ -571,6 +573,10 @@ func (s *NodegroupService) reconcileNodegroup(ctx context.Context) error {
 		return errors.Wrapf(err, "failed to reconcile asg tags")
 	}
 
+	if err := s.reconcileLifecycleHooks(s.ASGService); err != nil {
+		return errors.Wrapf(err, "failed to reconcile lifecyle hooks")
+	}
+
 	return nil
 }
 
@@ -644,4 +650,70 @@ func (s *NodegroupService) waitForNodegroupActive() (*eks.Nodegroup, error) {
 	}
 
 	return ng, nil
+}
+
+// ReconcileLifecycleHooks periodically reconciles a lifecycle hook for the ASG.
+func (s *NodegroupService) reconcileLifecycleHooks(asgsvc services.ASGInterface) error {
+	lifecyleHooks := s.scope.GetLifecycleHooks()
+	for i := range lifecyleHooks {
+		if err := s.reconcileLifecycleHook(&lifecyleHooks[i], asgsvc); err != nil {
+			return err
+		}
+	}
+
+	// Get a list of lifecycle hooks that are registered with the ASG but not defined in the MachinePool and delete them.
+	hooks, err := asgsvc.DescribeLifecycleHooks(s.scope.NodegroupName())
+	if err != nil {
+		return err
+	}
+	for _, hook := range hooks {
+		found := false
+		for _, definedHook := range lifecyleHooks {
+			if hook.Name == definedHook.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			s.scope.Info("Deleting extraneous lifecycle hook", "hook", hook.Name)
+			if err := asgsvc.DeleteLifecycleHook(s.scope.NodegroupName(), hook); err != nil {
+				conditions.MarkFalse(s.scope.GetMachinePool(), expinfrav1.LifecycleHookReadyCondition, expinfrav1.LifecycleHookDeletionFailedReason, clusterv1.ConditionSeverityError, err.Error())
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *NodegroupService) reconcileLifecycleHook(hook *expinfrav1.AWSLifecycleHook, asgsvc services.ASGInterface) error {
+	s.scope.Info("Checking for existing lifecycle hook")
+	existingHook, err := asgsvc.DescribeLifecycleHook(s.scope.NodegroupName(), hook)
+	if err != nil {
+		conditions.MarkUnknown(s.scope.GetMachinePool(), expinfrav1.LifecycleHookReadyCondition, expinfrav1.LifecycleHookNotFoundReason, err.Error())
+		return err
+	}
+
+	if existingHook == nil {
+		s.scope.Info("Creating lifecycle hook")
+		if err := asgsvc.CreateLifecycleHook(s.scope.NodegroupName(), hook); err != nil {
+			conditions.MarkFalse(s.scope.GetMachinePool(), expinfrav1.LifecycleHookReadyCondition, expinfrav1.LifecycleHookCreationFailedReason, clusterv1.ConditionSeverityError, err.Error())
+			return err
+		}
+		return nil
+	}
+
+	// If the lifecycle hook exists, we need to check if it's up to date
+	needsUpdate := asgsvc.LifecycleHookNeedsUpdate(existingHook, hook)
+
+	if needsUpdate {
+		s.scope.Info("Updating lifecycle hook")
+		if err := asgsvc.UpdateLifecycleHook(s.scope.NodegroupName(), hook); err != nil {
+			conditions.MarkFalse(s.scope.GetMachinePool(), expinfrav1.LifecycleHookReadyCondition, expinfrav1.LifecycleHookUpdateFailedReason, clusterv1.ConditionSeverityError, err.Error())
+			return err
+		}
+	}
+
+	conditions.MarkTrue(s.scope.GetMachinePool(), expinfrav1.LifecycleHookReadyCondition)
+	return nil
 }

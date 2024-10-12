@@ -892,6 +892,7 @@ spec:
                       type: string
                   required:
                   - lifecycleTransition
+                  - name
                   type: object
                 type: array
               providerIDList:

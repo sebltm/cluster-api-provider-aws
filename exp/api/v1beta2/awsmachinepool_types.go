@@ -102,7 +102,7 @@ type AWSMachinePoolSpec struct {
 	// If a process is removed from this list it will automatically be resumed.
 	SuspendProcesses *SuspendProcessesTypes `json:"suspendProcesses,omitempty"`
 
-	// AWSLifecycleHooks specifies lifecycle hooks for the managed node group.
+	// AWSLifecycleHooks specifies lifecycle hooks for the autoscaling group.
 	// +optional
 	AWSLifecycleHooks []AWSLifecycleHook `json:"lifecycleHooks,omitempty"`
 }

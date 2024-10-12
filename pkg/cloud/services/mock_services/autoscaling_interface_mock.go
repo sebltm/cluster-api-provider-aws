@@ -97,7 +97,7 @@ func (mr *MockASGInterfaceMockRecorder) CreateASG(arg0 interface{}) *gomock.Call
 }
 
 // CreateLifecycleHook mocks base method.
-func (m *MockASGInterface) CreateLifecycleHook(arg0 scope.LifecycleHookScope, arg1 *v1beta2.AWSLifecycleHook) error {
+func (m *MockASGInterface) CreateLifecycleHook(arg0 string, arg1 *v1beta2.AWSLifecycleHook) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateLifecycleHook", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -125,7 +125,7 @@ func (mr *MockASGInterfaceMockRecorder) DeleteASGAndWait(arg0 interface{}) *gomo
 }
 
 // DeleteLifecycleHook mocks base method.
-func (m *MockASGInterface) DeleteLifecycleHook(arg0 scope.LifecycleHookScope, arg1 *v1beta2.AWSLifecycleHook) error {
+func (m *MockASGInterface) DeleteLifecycleHook(arg0 string, arg1 *v1beta2.AWSLifecycleHook) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteLifecycleHook", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -136,6 +136,36 @@ func (m *MockASGInterface) DeleteLifecycleHook(arg0 scope.LifecycleHookScope, ar
 func (mr *MockASGInterfaceMockRecorder) DeleteLifecycleHook(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteLifecycleHook", reflect.TypeOf((*MockASGInterface)(nil).DeleteLifecycleHook), arg0, arg1)
+}
+
+// DescribeLifecycleHook mocks base method.
+func (m *MockASGInterface) DescribeLifecycleHook(arg0 string, arg1 *v1beta2.AWSLifecycleHook) (*v1beta2.AWSLifecycleHook, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeLifecycleHook", arg0, arg1)
+	ret0, _ := ret[0].(*v1beta2.AWSLifecycleHook)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeLifecycleHook indicates an expected call of DescribeLifecycleHook.
+func (mr *MockASGInterfaceMockRecorder) DescribeLifecycleHook(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeLifecycleHook", reflect.TypeOf((*MockASGInterface)(nil).DescribeLifecycleHook), arg0, arg1)
+}
+
+// DescribeLifecycleHooks mocks base method.
+func (m *MockASGInterface) DescribeLifecycleHooks(arg0 string) ([]*v1beta2.AWSLifecycleHook, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeLifecycleHooks", arg0)
+	ret0, _ := ret[0].([]*v1beta2.AWSLifecycleHook)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeLifecycleHooks indicates an expected call of DescribeLifecycleHooks.
+func (mr *MockASGInterfaceMockRecorder) DescribeLifecycleHooks(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeLifecycleHooks", reflect.TypeOf((*MockASGInterface)(nil).DescribeLifecycleHooks), arg0)
 }
 
 // GetASGByName mocks base method.
@@ -153,48 +183,18 @@ func (mr *MockASGInterfaceMockRecorder) GetASGByName(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetASGByName", reflect.TypeOf((*MockASGInterface)(nil).GetASGByName), arg0)
 }
 
-// GetLifecycleHook mocks base method.
-func (m *MockASGInterface) GetLifecycleHook(arg0 scope.LifecycleHookScope, arg1 *v1beta2.AWSLifecycleHook) (*v1beta2.AWSLifecycleHook, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLifecycleHook", arg0, arg1)
-	ret0, _ := ret[0].(*v1beta2.AWSLifecycleHook)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetLifecycleHook indicates an expected call of GetLifecycleHook.
-func (mr *MockASGInterfaceMockRecorder) GetLifecycleHook(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLifecycleHook", reflect.TypeOf((*MockASGInterface)(nil).GetLifecycleHook), arg0, arg1)
-}
-
-// GetLifecycleHooks mocks base method.
-func (m *MockASGInterface) GetLifecycleHooks(arg0 scope.LifecycleHookScope) ([]*v1beta2.AWSLifecycleHook, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLifecycleHooks", arg0)
-	ret0, _ := ret[0].([]*v1beta2.AWSLifecycleHook)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetLifecycleHooks indicates an expected call of GetLifecycleHooks.
-func (mr *MockASGInterfaceMockRecorder) GetLifecycleHooks(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLifecycleHooks", reflect.TypeOf((*MockASGInterface)(nil).GetLifecycleHooks), arg0)
-}
-
 // LifecycleHookNeedsUpdate mocks base method.
-func (m *MockASGInterface) LifecycleHookNeedsUpdate(arg0 scope.LifecycleHookScope, arg1, arg2 *v1beta2.AWSLifecycleHook) bool {
+func (m *MockASGInterface) LifecycleHookNeedsUpdate(arg0, arg1 *v1beta2.AWSLifecycleHook) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LifecycleHookNeedsUpdate", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "LifecycleHookNeedsUpdate", arg0, arg1)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // LifecycleHookNeedsUpdate indicates an expected call of LifecycleHookNeedsUpdate.
-func (mr *MockASGInterfaceMockRecorder) LifecycleHookNeedsUpdate(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockASGInterfaceMockRecorder) LifecycleHookNeedsUpdate(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LifecycleHookNeedsUpdate", reflect.TypeOf((*MockASGInterface)(nil).LifecycleHookNeedsUpdate), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LifecycleHookNeedsUpdate", reflect.TypeOf((*MockASGInterface)(nil).LifecycleHookNeedsUpdate), arg0, arg1)
 }
 
 // ResumeProcesses mocks base method.
@@ -269,7 +269,7 @@ func (mr *MockASGInterfaceMockRecorder) UpdateASG(arg0 interface{}) *gomock.Call
 }
 
 // UpdateLifecycleHook mocks base method.
-func (m *MockASGInterface) UpdateLifecycleHook(arg0 scope.LifecycleHookScope, arg1 *v1beta2.AWSLifecycleHook) error {
+func (m *MockASGInterface) UpdateLifecycleHook(arg0 string, arg1 *v1beta2.AWSLifecycleHook) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateLifecycleHook", arg0, arg1)
 	ret0, _ := ret[0].(error)

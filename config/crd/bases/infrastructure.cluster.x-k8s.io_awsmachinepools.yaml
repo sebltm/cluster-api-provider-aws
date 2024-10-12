@@ -840,8 +840,8 @@ spec:
                   If no value is supplied by user a default value of 300 seconds is set
                 type: string
               lifecycleHooks:
-                description: AWSLifecycleHooks specifies lifecycle hooks for the managed
-                  node group.
+                description: AWSLifecycleHooks specifies lifecycle hooks for the autoscaling
+                  group.
                 items:
                   description: AWSLifecycleHook describes an AWS lifecycle hook
                   properties:
@@ -885,6 +885,7 @@ spec:
                       type: string
                   required:
                   - lifecycleTransition
+                  - name
                   type: object
                 type: array
               maxSize:

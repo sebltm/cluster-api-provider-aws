@@ -220,7 +220,7 @@ type AutoScalingGroup struct {
 // AWSLifecycleHook describes an AWS lifecycle hook
 type AWSLifecycleHook struct {
 	// The name of the lifecycle hook.
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
 	// The ARN of the notification target that Amazon EC2 Auto Scaling uses to
 	// notify you when an instance is in the transition state for the lifecycle hook.
